@@ -1,7 +1,11 @@
-// src/components/AmenitiesCard.jsx
 import React from 'react';
 
 const AmenitiesCard = ({ amenity, onBook }) => {
+  // --- FIX IS HERE ---
+  // Gumawa tayo ng variable para siguraduhin na boolean ang comparison.
+  // Kung ang string ay "Yes", true. Kung "No", false.
+  const isAvailable = amenity.available === 'Yes'; 
+
   const handleImageError = (e) => {
     e.target.src = '/images/default-amenity.jpg';
   };
@@ -18,11 +22,11 @@ const AmenitiesCard = ({ amenity, onBook }) => {
         />
         {/* Availability Badge */}
         <div className={`absolute top-3 right-3 ${
-          amenity.available 
+          isAvailable  // GAMITIN ANG isAvailable DITO
             ? 'bg-lp-orange text-white' 
             : 'bg-red-500 text-white'
         } px-3 py-1 rounded-full text-xs font-semibold shadow-md`}>
-          {amenity.available ? 'Available' : 'Unavailable'}
+          {isAvailable ? 'Available' : 'Unavailable'}
         </div>
         
         {/* Type Badge */}
@@ -60,9 +64,9 @@ const AmenitiesCard = ({ amenity, onBook }) => {
         {/* Book Now Button */}
         <button 
           onClick={() => onBook(amenity)}
-          disabled={!amenity.available}
+          disabled={!isAvailable} // GAMITIN ANG isAvailable DITO
           className={`w-full py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-            amenity.available 
+            isAvailable 
               ? 'bg-lp-blue hover:bg-lp-blue-hover text-white cursor-pointer transform hover:scale-[1.02]' 
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
@@ -73,7 +77,7 @@ const AmenitiesCard = ({ amenity, onBook }) => {
             <line x1="8" x2="8" y1="2" y2="6"/>
             <line x1="3" x2="21" y1="10" y2="10"/>
           </svg>
-          {amenity.available ? '+ Add Booking' : 'Unavailable'}
+          {isAvailable ? '+ Add Booking' : 'Unavailable'}
         </button>
       </div>
     </div>
