@@ -1,4 +1,7 @@
-import React from "react";
+
+
+
+import React, { useState } from "react";
 import { useAuth } from "../AuthContext";
 import Header from "../../components/Header.jsx";
 import Footer from "../../components/Footer.jsx";
@@ -76,13 +79,7 @@ const Feedback = () => {
     return (total / reviews.length).toFixed(1);
   };
 
-  const handleRatingChange = (category, value) => {
-    setFormData(prev => ({
-      ...prev,
-      ratings: { ...prev.ratings, [category]: value }
-    }));
-  };
-
+  
   const handleSubmit = (e) => {
     e.preventDefault();
     const unrated = Object.values(formData.ratings).some(r => r === 0);
@@ -149,7 +146,130 @@ const Feedback = () => {
 
       {/* MAIN CONTENT - INTEGRATED FEEDBACK SYSTEM */}
       <div className="flex-grow container mx-auto px-4 sm:px-6 py-8">
-        <p>FEEDBACK</p>
+        <div className="grid lg:grid-cols-12 gap-8">
+          
+          {/* LEFT COLUMN: SUBMISSION FORM */}
+          <div className="lg:col-span-5">
+            <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-orange-100">
+              
+              {/* Form Header */}
+              <div className="bg-orange-50 p-6 border-b border-orange-100 flex justify-between items-center">
+                <div>
+                  <h3 className="font-serif-display font-bold text-2xl text-[#c2410c]">
+                    Write a Review
+                  </h3>
+                  <p className="text-slate-500 text-xs uppercase tracking-wider mt-1">Share your story</p>
+                </div>
+                {getCurrentFormAverage() > 0 && (
+                  <div className="bg-[#ea580c] text-white px-3 py-1 rounded-full shadow-sm">
+                    <span className="font-bold font-serif-display">{getCurrentFormAverage()}</span>
+                    <span className="text-[10px] uppercase ml-1">Avg</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 md:p-8 relative">
+                
+                {/* Success Overlay */}
+                {showSuccess && (
+                  <div className="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center text-center p-8 rounded-b-xl animate-in fade-in duration-200">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                      <CheckCircle2 size={40} className="text-green-600" />
+                    </div>
+                    <h4 className="text-3xl font-serif-display font-bold text-[#ea580c] mb-3">Thank You!</h4>
+                    <p className="text-slate-600 text-lg">Your feedback has been securely submitted.</p>
+                    <p className="text-slate-400 text-sm mt-2">Redirecting you shortly...</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-8">
+                  
+                  {/* STEP 1: CATEGORY RATINGS */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
+                      1. Rate Your Experience
+                    </label>
+                    <div className="space-y-4">
+                      {categories.map((cat) => (
+                        <div key={cat.id} className="flex flex-col sm:flex-row sm:items-center justify-between group">
+                          <span className="text-sm font-semibold text-slate-700 w-32 mb-1 sm:mb-0 group-hover:text-[#ea580c] transition-colors">{cat.label}</span>
+                          <div className="flex gap-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => handleRatingChange(cat.id, star)}
+                                className="focus:outline-none transition-all hover:scale-110"
+                              >
+                                <Star
+                                  size={22}
+                                  fill={star <= formData.ratings[cat.id] ? "#f59e0b" : "#e2e8f0"}
+                                  className={star <= formData.ratings[cat.id] ? "text-[#f59e0b]" : "text-slate-200"}
+                                  strokeWidth={star <= formData.ratings[cat.id] ? 0 : 1.5}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <hr className="border-slate-100" />
+
+                  {/* STEP 2: DETAILS */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
+                      2. Tell us more
+                    </label>
+                    <div className="space-y-4">
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Your Name (Optional)"
+                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#ea580c] focus:border-transparent outline-none transition-all placeholder:text-slate-400"
+                          value={formData.name}
+                          onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <textarea
+                          rows="4"
+                          placeholder="What did you love about your stay? How can we improve?"
+                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#ea580c] focus:border-transparent outline-none transition-all resize-none placeholder:text-slate-400"
+                          value={formData.comment}
+                          onChange={(e) => setFormData({...formData, comment: e.target.value})}
+                          required
+                        ></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* STEP 3: SUBMIT */}
+                  <div>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl hover:shadow-orange-200 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                          Submit Review <Send size={18} />
+                    </button>
+                    
+                    <div className="flex items-center justify-center gap-2 mt-4 text-xs text-slate-400 opacity-80">
+                      <ShieldCheck size={12} />
+                      <span>Encrypted & Secure Submission</span>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: ANALYTICS & REVIEWS */}
+          <div className="lg:col-span-7 space-y-8">
+            
+          </div>
+        </div>
       </div>
 
       <Footer />
