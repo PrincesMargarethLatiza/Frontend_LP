@@ -244,12 +244,13 @@ const Reservations = () => {
         </div>
       </section>
 
-     {/* ACTION BUTTONS SECTION */}
+      {/* ACTION BUTTONS SECTION */}
       <section className="bg-white border-b border-gray-200 py-4">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex justify-center gap-4">
             {/* View Reservations Button */}
             <button
+              onClick={() => setShowReservationsModal(true)}
               className="flex items-center gap-2 bg-lp-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-lp-orange-hover transition-colors"
             >
               <Calendar className="w-5 h-5" />
