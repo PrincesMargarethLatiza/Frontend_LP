@@ -1,291 +1,150 @@
+// FILE: src/pages/customer/CustomerDashboard.jsx
 import React, { useState, useEffect } from "react";
-import AmenitiesCard from "../../components/AmenitiesCard";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useAuth } from "../AuthContext";
-import api from "../../config/axios"; 
-import { useNavigate } from "react-router-dom";
-import { Facebook, Instagram, Twitter, LogOut, Eye, Calendar, ChevronDown } from 'lucide-react'; 
+import axios from "axios";
+import { Loader2, CheckCircle2 } from "lucide-react";
+
+// IMPORT NEW COMPONENTS
+import HeroSection from "./customerdashboardcomponents/HeroSection";
+import WelcomeSection from "./customerdashboardcomponents/WelcomeSection";
+import FeaturedAmenities from "./customerdashboardcomponents/FeaturedAmenities";
+import GallerySection from "./customerdashboardcomponents/GallerySection";
+import FeedbackSection from "./customerdashboardcomponents/FeedbackSection";
+import ContactSection from "./customerdashboardcomponents/ContactSection";
+import MapSection from "./customerdashboardcomponents/MapSection";
+import ReviewModal from "./customerdashboardcomponents/ReviewModal";
+
+const API_URL = "http://localhost:5000";
 
 const CustomerDashboard = () => {
-  const [amenities, setAmenities] = useState([]);
-  const [filteredAmenities, setFilteredAmenities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [pageLoad, setPageLoad] = useState(true);
-  
-  const [filters, setFilters] = useState({
-    type: 'any',
-    availability: 'any',
-    capacity: 'any',
-    priceRange: 'any'
-  });
-  
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  
-  const backgroundImageUrl = "/images/bg.jpg";
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPageLoad(false);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
+    const { user } = useAuth();
 
-  // LOGOUT HANDLERS
-  const handleLogoutClick = () => setShowLogoutConfirm(true);
-  const handleConfirmLogout = () => { 
-    logout(); 
-    navigate('/'); 
-    setShowLogoutConfirm(false); 
-  };
-  const handleCancelLogout = () => setShowLogoutConfirm(false);
+    // --- STATE MANAGEMENT ---
+    const [reviews, setReviews] = useState([]);
+    const [featuredAmenities, setFeaturedAmenities] = useState([]);
+    const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+    const [isLoadingData, setIsLoadingData] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
-  const fetchAmenities = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.get('/api/amenities');
-      const backendUrl = import.meta.env.VITE_API_URL; 
-      
-      const dataWithImages = response.data.map(item => ({
-        ...item,
-        image: item.image ? `${backendUrl}/uploads/am_images/${item.image}` : null
-      }));
+    // --- FETCH DATA ---
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setIsLoadingReviews(true);
+                setIsLoadingData(true);
 
-      setAmenities(dataWithImages);
-      setFilteredAmenities(dataWithImages);
-    } catch (err) {
-      console.error('Error fetching amenities:', err);
-      setError(err.message || "Failed to load amenities");
-    } finally {
-      setLoading(false);
-    }
-  };
+                // Fetch Amenities
+                try {
+                    const response = await axios.get(`${API_URL}/api/amenities/featured`);
+                    if (response.data && response.data.length > 0) {
+                        setFeaturedAmenities(response.data);
+                    } else { throw new Error("No data"); }
+                } catch (err) {
+					console.log(err);
+                    // Fallback Data
+                    setFeaturedAmenities([
+                        { id: 1, name: "Refreshing Pool", description: "Dive into relaxation.", image: "pool.png" },
+                        { id: 2, name: "Grand Event Hall", description: "Perfect venue for celebrations.", image: "eventhall.png" },
+                        { id: 3, name: "Relaxing Cottage", description: "Comfort in native style.", image: "cottage.png" },
+                    ]);
+                }
 
-  useEffect(() => {
-    fetchAmenities();
-  }, []);
+                // Fetch Reviews
+                try {
+                    const reviewsRes = await axios.get(`${API_URL}/api/feedbacks`);
+                    const formattedReviews = reviewsRes.data.map(review => ({
+                        id: review.id,
+                        name: review.customer_name || review.name || "Guest",
+                        average: review.average,
+                        comment: review.comment,
+                        date: review.date ? new Date(review.date).toLocaleDateString() : new Date().toLocaleDateString(),
+                        ratings: {
+                            service: review.service || 5,
+                            cleanliness: review.cleanliness || 5,
+                            amenities: review.amenities || 5
+                        }
+                    }));
+                    setReviews(formattedReviews.filter(r => parseFloat(r.average) >= 4.0));
+                } catch (error) { 
+					console.log(error);
+					setReviews([]); }
 
-  useEffect(() => {
-    applyFilters();
-  }, [filters, amenities]);
+            } catch (error) { console.error(error); }
+            finally { setIsLoadingReviews(false); setIsLoadingData(false); }
+        };
+        fetchData();
+    }, []);
 
-  const applyFilters = () => {
-    let filtered = [...amenities];
-    
-    // Type filter
-    if (filters.type !== 'any') {
-      filtered = filtered.filter(amenity => 
-        amenity.type.toLowerCase() === filters.type.toLowerCase()
-      );
-    }
-    
-    // Availability filter
-    if (filters.availability !== 'any') {
-      if (filters.availability === 'available') filtered = filtered.filter(amenity => amenity.available === 'Yes');
-      else if (filters.availability === 'unavailable') filtered = filtered.filter(amenity => amenity.available === 'No');
-    }
-    
-    // Capacity filter - UPDATED TO MATCH YOUR DATA
-    if (filters.capacity !== 'any') {
-      switch (filters.capacity) {
-        case '1-4': 
-          filtered = filtered.filter(amenity => amenity.capacity >= 1 && amenity.capacity <= 4); 
-          break;
-        case '5-10': 
-          filtered = filtered.filter(amenity => amenity.capacity >= 5 && amenity.capacity <= 10); 
-          break;
-        case '11+': 
-          filtered = filtered.filter(amenity => amenity.capacity >= 11); 
-          break;
-        default: break;
-      }
-    }
-    
-    // Price range filter - UPDATED TO MATCH YOUR DATA
-    if (filters.priceRange !== 'any') {
-      switch (filters.priceRange) {
-        case '0-500': 
-          filtered = filtered.filter(amenity => amenity.price >= 0 && amenity.price <= 500); 
-          break;
-        case '501-1000': 
-          filtered = filtered.filter(amenity => amenity.price >= 501 && amenity.price <= 1000); 
-          break;
-        case '1001+': 
-          filtered = filtered.filter(amenity => amenity.price > 1000); 
-          break;
-        default: break;
-      }
-    }
-    
-    setFilteredAmenities(filtered);
-  };
+    // --- SUBMIT REVIEW LOGIC ---
+    const handleReviewSubmit = async (payload) => {
+        setIsSubmitting(true);
+        try {
+            const response = await axios.post(`${API_URL}/api/feedbacks`, payload);
+            if (response.data.success) {
+                if (payload.rating >= 4) {
+                    const newReview = {
+                        id: Date.now(),
+                        name: payload.name,
+                        average: payload.rating,
+                        comment: payload.comment,
+                        date: new Date().toLocaleDateString(),
+                        ratings: payload.ratings
+                    };
+                    setReviews(prev => [newReview, ...prev]);
+                }
+                setIsReviewModalOpen(false);
+                setShowFeedbackSuccess(true);
+                setTimeout(() => setShowFeedbackSuccess(false), 3000);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Failed to submit review.");
+        } finally { setIsSubmitting(false); }
+    };
 
-  const handleFilterChange = (filterType, value) => {
-    setFilters(prev => ({ ...prev, [filterType]: value }));
-  };
-
-  const clearFilters = () => {
-    setFilters({ type: 'any', availability: 'any', capacity: 'any', priceRange: 'any' });
-  };
-
-  const handleBookAmenity = (amenity) => {
-    navigate('/reservations', { state: { selectedAmenity: amenity } });
-  };
-
-  const scrollToAmenities = () => {
-    const amenitiesSection = document.querySelector('main');
-    if (amenitiesSection) {
-      amenitiesSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const activeFilterCount = Object.values(filters).filter(filter => filter !== 'any').length;
-
-  return (
-    <div className={`min-h-screen flex flex-col font-body transition-all duration-500 ${pageLoad ? 'opacity-0' : 'opacity-100'}`}>
-      
-      {/* Logout Confirmation Modal */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm mx-4 transform transition-all duration-300 scale-100">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <LogOut className="w-8 h-8 text-yellow-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Logout</h3>
-              <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
-              <div className="flex gap-3 justify-center">
-                <button onClick={handleCancelLogout} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-                <button onClick={handleConfirmLogout} className="px-4 py-2 bg-lp-orange text-white rounded-lg hover:bg-lp-orange-hover transition-colors">Logout</button>
-              </div>
+    return (
+        <div className="min-h-screen flex flex-col font-body bg-white overflow-x-hidden relative">
+            <div className="sticky top-0 z-50 w-full bg-white shadow-sm">
+                <Header user={user} />
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Header Component */}
-      <Header user={user} onLogout={handleLogoutClick} />
+            <HeroSection />
+            <WelcomeSection />
+            <FeaturedAmenities 
+                isLoading={isLoadingData} 
+                amenities={featuredAmenities} 
+                apiUrl={API_URL} 
+            />
+            <GallerySection apiUrl={API_URL} />
+            <FeedbackSection 
+                reviews={reviews} 
+                isLoading={isLoadingReviews} 
+                onOpenModal={() => setIsReviewModalOpen(true)} 
+            />
+            <ContactSection />
+            <MapSection />
+            <Footer />
 
-      {/* --- HERO SECTION --- */}
-      <div className="relative flex-grow flex items-center justify-center min-h-[90vh] md:min-h-screen">
-        <div 
-            className="absolute inset-0 z-0"
-            style={{ backgroundImage: `url(${backgroundImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
-            <div className="absolute inset-0 bg-black/40"></div>
-        </div>
+            {isReviewModalOpen && (
+                <ReviewModal 
+                    onClose={() => setIsReviewModalOpen(false)} 
+                    onSubmit={handleReviewSubmit}
+                    isSubmitting={isSubmitting}
+                />
+            )}
 
-        <div className="relative z-10 w-full max-w-5xl px-4 text-center py-10 md:py-0">
-            <h1 className="text-3xl md:text-6xl font-bold text-white font-header mb-4 drop-shadow-md leading-tight">
-                La Piscina De Conception Resort
-            </h1>
-            <p className="text-sm md:text-lg text-gray-200 max-w-2xl mx-auto mb-8 md:mb-12 drop-shadow-sm px-2">
-                Enjoy a relaxing stay that's affordable but still feels special. Great rooms, nice amenities, and easy bookings—all for you.
-            </p>
-
-            {/* --- FILTER BOX --- */}
-            <div className="bg-black/60 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-white/10 text-left w-full max-w-4xl mx-auto ring-1 ring-white/5 mt-6">
-                
-                <div className="flex justify-between items-center mb-3 px-1">
-                    <p className="text-white text-xs font-bold uppercase tracking-wider opacity-90">Filter Amenities</p>
-                    {activeFilterCount > 0 && (
-                      <button onClick={clearFilters} className="text-[10px] text-white/80 underline hover:text-lp-orange transition-colors">Clear Filters</button>
-                    )}
+            {showFeedbackSuccess && (
+                <div className="fixed bottom-8 right-8 z-[60] bg-green-600 text-white px-6 py-4 shadow-lg flex items-center gap-3 animate-in slide-in-from-right duration-300">
+                    <CheckCircle2 size={24} />
+                    <div><h4 className="font-bold text-sm">Thank You!</h4><p className="text-xs text-green-100">Review submitted.</p></div>
                 </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <select 
-                        className="w-full py-2 px-3 rounded-md bg-white/95 border-none focus:ring-2 focus:ring-lp-orange text-gray-800 text-sm shadow-sm"
-                        value={filters.type}
-                        onChange={(e) => handleFilterChange('type', e.target.value)}
-                    >
-                        <option value="any">All Types</option>
-                        <option value="Table">Table</option>
-                        <option value="Kubo">Kubo</option>
-                        <option value="Cabin">Cabin</option>
-                        <option value="Others">Others</option>
-                    </select>
-                    <select 
-                        className="w-full py-2 px-3 rounded-md bg-white/95 border-none focus:ring-2 focus:ring-lp-orange text-gray-800 text-sm shadow-sm"
-                        value={filters.availability}
-                        onChange={(e) => handleFilterChange('availability', e.target.value)}
-                    >
-                        <option value="any">Any Status</option>
-                        <option value="available">Available</option>
-                        <option value="unavailable">Unavailable</option>
-                    </select>
-                    <select 
-                        className="w-full py-2 px-3 rounded-md bg-white/95 border-none focus:ring-2 focus:ring-lp-orange text-gray-800 text-sm shadow-sm"
-                        value={filters.capacity}
-                        onChange={(e) => handleFilterChange('capacity', e.target.value)}
-                    >
-                        <option value="any">Any Capacity</option>
-                        <option value="1-4">Small (1-4)</option>
-                        <option value="5-10">Medium (5-10)</option>
-                        <option value="11+">Large (11+)</option>
-                    </select>
-                    <select 
-                        className="w-full py-2 px-3 rounded-md bg-white/95 border-none focus:ring-2 focus:ring-lp-orange text-gray-800 text-sm shadow-sm"
-                        value={filters.priceRange}
-                        onChange={(e) => handleFilterChange('priceRange', e.target.value)}
-                    >
-                        <option value="any">Any Price</option>
-                        <option value="0-500">₱0 - ₱500</option>
-                        <option value="501-1000">₱501 - ₱1,000</option>
-                        <option value="1001+">₱1,001+</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* Down Arrow Button */}
-            <div className="mt-8 flex justify-center">
-              <button 
-                onClick={scrollToAmenities}
-                className="flex flex-col items-center text-white hover:text-lp-orange transition-colors duration-300"
-              >
-                <span className="text-sm mb-1 opacity-80">View Featured Amenities</span>
-                <ChevronDown size={24} className="opacity-80" />
-              </button>
-            </div>
+            )}
         </div>
-      </div>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
-        <section className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-lp-dark font-header mb-4">Featured Amenities</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto text-sm md:text-base">Discover our premium facilities designed for your comfort.</p>
-          </div>
-
-          {loading && <div className="text-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lp-orange mx-auto"></div><p className="mt-4 text-gray-600">Loading...</p></div>}
-          
-          {error && <div className="text-center py-12"><div className="text-red-500 text-4xl mb-2">⚠️</div><p className="text-gray-600 mb-4">{error}</p><button onClick={fetchAmenities} className="bg-lp-orange text-white px-6 py-2 rounded-lg">Try Again</button></div>}
-
-          {!loading && !error && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAmenities.slice(0, 6).map((amenity) => ( 
-                  <AmenitiesCard key={amenity.id} amenity={amenity} onBook={handleBookAmenity} />
-                ))}
-              </div>
-              {filteredAmenities.length === 0 && amenities.length > 0 && (
-                <div className="text-center py-12"><p className="text-gray-500 mb-4">No matches found.</p><button onClick={clearFilters} className="bg-lp-orange text-white px-6 py-2 rounded-lg">Clear Filters</button></div>
-              )}
-            </>
-          )}
-        </section>
-      </main>
-
-      {/* Footer Component */}  
-      <Footer />
-
-    </div>
-  );
+    );
 };
 
 export default CustomerDashboard;
