@@ -104,10 +104,11 @@ const Auth = () => {
           
           console.log('🔑 Step 3: Token Found:', token);
 
-          
+          // 1. Save to LocalStorage manually (Backup)
+          localStorage.setItem('token', token);
           localStorage.setItem('user', JSON.stringify(userData));
 
-         
+          // 2. Pass to Context
           await login(userData, token);
           
           console.log('✅ Step 4: Login Complete. Redirecting...');
